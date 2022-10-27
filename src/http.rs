@@ -2,7 +2,8 @@ use bip78::receiver::*;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
-use crate::scheduler::{ScheduledPayJoin, Scheduler, self};
+use crate::scheduler::{self, ScheduledPayJoin, Scheduler};
+use qrcode_generator::QrCodeEcc;
 use std::net::SocketAddr;
 
 #[cfg(not(feature = "test_paths"))]
@@ -11,8 +12,18 @@ const STATIC_DIR: &str = "/usr/share/loin/static";
 #[cfg(feature = "test_paths")]
 const STATIC_DIR: &str = "static";
 
+fn create_qr_code(qr_string: &str, name: &str) {
+    let filename = format!("{}/qr_codes/{}.png", STATIC_DIR, name);
+    qrcode_generator::to_png_to_file(qr_string, QrCodeEcc::Low, 512, filename.clone())
+        .expect(&format!("Saved QR code: {}", filename));
+}
+
 /// Serve requests to Schedule and execute PayJoins with given options.
-pub async fn serve(sched: Scheduler, bind_addr: SocketAddr, endpoint: url::Url) -> Result<(), hyper::Error> {
+pub async fn serve(
+    sched: Scheduler,
+    bind_addr: SocketAddr,
+    endpoint: url::Url,
+) -> Result<(), hyper::Error> {
     let new_service = make_service_fn(move |_| {
         let sched = sched.clone();
         let endpoint = endpoint.clone();
@@ -30,7 +41,7 @@ pub async fn serve(sched: Scheduler, bind_addr: SocketAddr, endpoint: url::Url) 
 async fn handle_web_req(
     scheduler: Scheduler,
     req: Request<Body>,
-    endpoint: url::Url 
+    endpoint: url::Url,
 ) -> Result<Response<Body>, hyper::Error> {
     use std::path::Path;
 
@@ -75,12 +86,14 @@ async fn handle_web_req(
             let bytes = hyper::body::to_bytes(req.into_body()).await?;
             // deserialize x-www-form-urlencoded data with non-strict encoded "channel[arrayindex]"
             let conf = serde_qs::Config::new(2, false);
-            let request: ScheduledPayJoin = conf.deserialize_bytes(&bytes).expect("invalid request");
+            let request: ScheduledPayJoin =
+                conf.deserialize_bytes(&bytes).expect("invalid request");
 
             let address = scheduler.schedule_payjoin(&request).await.unwrap();
             let total_amount = request.total_amount();
-            let uri = scheduler::format_bip21(address, total_amount, endpoint);
-            let mut response = Response::new(Body::from(uri));
+            let uri = scheduler::format_bip21(address.clone(), total_amount, endpoint);
+            let mut response = Response::new(Body::from(uri.clone()));
+            create_qr_code(&uri, &address.to_string());
             response
                 .headers_mut()
                 .insert(hyper::header::CONTENT_TYPE, "text/plain".parse().unwrap());
@@ -98,5 +111,7 @@ async fn handle_web_req(
 
 pub(crate) struct Headers(hyper::HeaderMap);
 impl bip78::receiver::Headers for Headers {
-    fn get_header(&self, key: &str) -> Option<&str> { self.0.get(key)?.to_str().ok() }
+    fn get_header(&self, key: &str) -> Option<&str> {
+        self.0.get(key)?.to_str().ok()
+    }
 }

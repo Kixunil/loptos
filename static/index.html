@@ -4,7 +4,9 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/selekkt-skelet@latest/css/skelet.min.css">
+		<!-- having trouble getting the right path on both umbrel and local.. -->
 		<link rel="stylesheet" href="/pj/static/style.css">
+		<link rel="stylesheet" href="style.css">
 		<title>nolooking // Lightning PayJoin</title>
 		<style>
 			.invisible {
@@ -55,12 +57,14 @@
 				</fieldset>
 				<br>
 				<div id="queue">
-					<button type="submit" class="float-right" style="background: #d38105;">Generate Funding Request QR</button>
+					<button type="submit" class="float-right" style="background: #d38105;">Generate Funding Request</button>
 				</div>
 				<output id="queued" class="invisible">
 					<h2>PayJoin here to open these channels</h2>
-					<a href="" id="bip21"></a>
-					<p>Please use <a href="https://en.bitcoin.it/wiki/PayJoin_adoption" target="_blank" style="color:rgb(218, 160, 0)">a wallet that supports</a> BIP 78 <a href="https://bitcoinmagazine.com/culture/blockchain-analysis-about-get-harder-p2ep-enters-testing-phase" target="blank" style="color:rgb(218, 160, 0)">P2EP</a> PayJoins!</p>
+					<div id="qrcode" style="display: flex; justify-content: center; text-align: center;"></div>
+					<br>
+					<a style="color:rgb(218, 160, 0);" href="" id="bip21"></a>
+					<p>Please use <a href="https://en.bitcoin.it/wiki/PayJoin_adoption" target="_blank" style="color:rgb(218, 160, 0);">a wallet that supports</a> BIP 78 <a href="https://bitcoinmagazine.com/culture/blockchain-analysis-about-get-harder-p2ep-enters-testing-phase" target="blank" style="color:rgb(218, 160, 0);">P2EP</a> PayJoins!</p>
 				</output>
 			</form>
 
@@ -71,7 +75,7 @@
 				var table = document.getElementById("channels");
 				var input_node = document.getElementById("input_node").value;
 				var input_sats = document.getElementById("input_sats").value;
-				table.innerHTML = table.innerHTML + `<input type="text" value="${input_node}" name="channels[${++channels}][node]" aria-labelledby="destinationLabel" span="1"><input type="number" value="${input_sats}" name="channels[${++channels}][amount]" min="20000" step="1" aria-labelledby="capacityLabel" span="1">`;
+				table.innerHTML = table.innerHTML + `<input type="text" value="${input_node}" name="channels[${++channels}][node]" aria-labelledby="destinationLabel" span="1"><input type="number" value="${input_sats}" name="channels[${channels}][amount]" min="20000" step="1" aria-labelledby="capacityLabel" span="1">`;
 			}
 			document.querySelector("form").addEventListener("submit", async (event) => {
 				event.preventDefault();
@@ -86,14 +90,18 @@
 
 				await fetch(resource, options)
 					.then(async (r) => {
+						console.log(r);
 						if (!r.ok)
-							console.log(r);
 							throw new Error('Something went wrong.');
 
 						let link = document.getElementById("bip21");
 						let bip21 = await r.text();
 						link.href = bip21;
 						link.innerHTML = bip21;
+
+
+						var address = bip21.split("bitcoin:")[1].split("?")[0];
+						document.getElementById("qrcode").innerHTML = "<img src=\"pj/static/qr_codes/" + address + ".png\" width=\"256px\"></img>";
 						document.getElementById("queue").classList.add("invisible");
 						document.getElementById("queued").classList.remove("invisible");
 					})

@@ -58,6 +58,10 @@ p {
     -webkit-background-clip: text;
 }
 
+.styledlink {
+    color:rgb(218, 160, 0);
+}
+
 fieldset {
     background-color: black;
 }
