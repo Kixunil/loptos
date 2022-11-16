@@ -24,4 +24,4 @@ ln-types = { version = "0.1.2", features = ["serde", "parse_arg"] }
 configure_me = "0.4.0"
 
 [build-dependencies]
-configure_me_codegen = "0.4.1"
+configure_me_codegen = "0.4.3"
